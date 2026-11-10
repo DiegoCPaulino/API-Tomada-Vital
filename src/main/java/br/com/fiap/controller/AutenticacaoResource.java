@@ -24,7 +24,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/autenticacao")
-@Tag(name = "Autenticação", description = "API para cadastro e login dos usuários.") //--- agrupando os endpoints por API
+@Tag(name = "Autenticação", description = "Cadastro da família pelo app e login de quem usa a API: a família do paciente, " +
+        "o operador da central da concessionária e o administrador. O login devolve o Token JWT exigido em todos os outros " +
+        "endpoints; o papel que vai dentro dele define o que cada um pode fazer.") //--- agrupando os endpoints por API
 public class AutenticacaoResource {
 
     private final GeradorTokenJWTService geradorTokenService;
@@ -37,8 +39,9 @@ public class AutenticacaoResource {
 
     //--- sem security no @Operation: o cadastro é público (quem ainda não tem conta não tem login nem token)
     @Operation(
-            summary = "Cadastrar usuário.",
-            description = "Cadastro público da família pelo app. O usuário é criado sempre com o papel FAMILIA.")
+            summary = "Cadastrar família.",
+            description = "Cadastro público, feito pela família no app antes de cadastrar o paciente e os aparelhos. " +
+                    "O usuário é criado sempre com o papel FAMILIA: ninguém se cadastra como operador ou administrador.")
     @ApiResponses({
             @ApiResponse(
                     responseCode = "201",
@@ -70,7 +73,10 @@ public class AutenticacaoResource {
 
     @Operation(
             summary = "Autenticar usuário.",
-            description = "Autentica via HTTP Basic (login e senha) e retorna um Token JWT válido por 1 hora.",
+            description = "Autentica via HTTP Basic (login e senha) e retorna um Token JWT válido por 1 hora, com o papel do " +
+                    "usuário (FAMILIA, OPERADOR ou ADMIN). O app e a tela da central mandam esse token no cabeçalho " +
+                    "Authorization: Bearer em todas as outras chamadas. A validade de 1 hora evita pedir login à família " +
+                    "a toda hora durante uma queda de energia.",
             security = @SecurityRequirement(name = "basicAuth")) //--- Autenticação HTTP Basic
     @ApiResponses({
             @ApiResponse(

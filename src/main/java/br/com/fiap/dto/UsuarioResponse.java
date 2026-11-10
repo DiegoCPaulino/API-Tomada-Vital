@@ -9,7 +9,7 @@ public record UsuarioResponse(
         @Schema(description = "Identificador do usuário")
         Long id,
 
-        @Schema(description = "Nome do usuário")
+        @Schema(description = "Nome de quem cuida do paciente (a família que usa o app)")
         String nome,
 
         @Schema(description = "Login do usuário")

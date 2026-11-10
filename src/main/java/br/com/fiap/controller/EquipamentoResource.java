@@ -45,8 +45,9 @@ public class EquipamentoResource {
 
     @Operation(
             summary = "Cadastrar equipamento",
-            description = "Cadastra um equipamento para um paciente. O código do dispositivo é único. " +
-                    "Quem pode: FAMILIA (só para o seu paciente) e ADMIN.",
+            description = "Cadastra o aparelho de que o paciente depende e o código do dispositivo Tomada Vital ligado na " +
+                    "tomada dele (único). A autonomia da bateria é o que a API usa, quando a luz cair, para calcular quanto " +
+                    "tempo resta e a posição na fila. Quem pode: FAMILIA (só para o seu paciente) e ADMIN.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({

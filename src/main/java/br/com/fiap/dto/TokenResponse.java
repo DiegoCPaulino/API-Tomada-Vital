@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 //--- resposta do login: o app guarda o accessToken e manda em toda requisição no cabeçalho Authorization: Bearer <token>
 public record TokenResponse(
-        @Schema(description = "Token JWT assinado")
+        @Schema(description = "Token JWT assinado, com o login e o papel do usuário. Vai no cabeçalho Authorization: Bearer das outras chamadas")
         String accessToken,
 
         @Schema(description = "Tipo do token", example = "Bearer")

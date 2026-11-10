@@ -45,7 +45,9 @@ public class PacienteResource {
 
     @Operation(
             summary = "Cadastrar paciente",
-            description = "Cadastra um paciente ligado à família logada (o dono vem do token). Quem pode: FAMILIA.",
+            description = "Cadastra a pessoa que depende do aparelho elétrico, ligada à família logada (o dono vem do token). " +
+                    "É feito antes de qualquer queda: o bairro e o telefone são o que a central usa para mandar a equipe. " +
+                    "Quem pode: FAMILIA.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses({

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 
 //--- corpo do cadastro público. Não tem campo de papel: quem se cadastra é sempre FAMILIA (RN02)
 public record UsuarioCadastroRequest(
-        @Schema(description = "Nome do usuário", example = "Família de Ana Lima")
+        @Schema(description = "Nome de quem cuida do paciente (a família que usa o app)", example = "Família de Ana Lima")
         @NotBlank(message = "O nome deve ser informado") String nome,
 
         @Schema(description = "Login usado para entrar no app", example = "ana.lima")
