@@ -9,6 +9,8 @@ import br.com.fiap.exception.RegraDeNegocioException;
 import br.com.fiap.repository.EquipamentoRepository;
 import br.com.fiap.repository.PacienteRepository;
 import br.com.fiap.repository.UsuarioRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -58,6 +60,11 @@ public class PacienteService {
         return pacientes.map(PacienteResponse::from);
     }
 
+    //--- @Cacheable: na 1ª consulta do id executa o método (SELECT) e guarda a resposta; nas próximas devolve a guardada
+    //--- sem ir ao banco. Guarda o DTO (nunca a entidade: fora da transação, o LAZY daria LazyInitializationException).
+    //--- Não recebe Authentication: a chave é só o id e a conferência do dono fica no controller, DEPOIS do cache
+    //--- (se ficasse aqui dentro, uma resposta vinda do cache pularia a conferência)
+    @Cacheable(value = "pacientes", key = "#id")
     public PacienteResponse consultarPorCodigo(Long id) {
         Optional<Paciente> retornoConsulta = pacienteRepository.findById(id);
         if (retornoConsulta.isPresent()) {
@@ -81,6 +88,8 @@ public class PacienteService {
     }
 
     //--- o dono não muda na alteração: só os dados do paciente
+    //--- @CacheEvict: depois de alterar, tira o id do cache; a próxima consulta busca os dados novos no banco
+    @CacheEvict(value = "pacientes", key = "#id")
     public PacienteResponse atualizar(Long id, PacienteRequest pacienteRequest) {
         Optional<Paciente> retornoConsulta = pacienteRepository.findById(id);
         if (retornoConsulta.isEmpty()) {
@@ -98,6 +107,8 @@ public class PacienteService {
         return PacienteResponse.from(pacienteAtualizado);
     }
 
+    //--- @CacheEvict: depois de apagar, tira o id do cache; senão a consulta continuaria achando o registro apagado
+    @CacheEvict(value = "pacientes", key = "#id")
     public void remover(Long id) {
         if (!pacienteRepository.existsById(id)) {
             throw new RecursoNaoEncontradoException("Paciente", id);

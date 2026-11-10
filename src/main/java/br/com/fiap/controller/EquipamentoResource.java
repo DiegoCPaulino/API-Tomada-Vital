@@ -9,11 +9,17 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
 @RequestMapping("/api/equipamentos")
@@ -28,38 +34,41 @@ public class EquipamentoResource {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<EquipamentoResponse> cadastrar(@Valid @RequestBody EquipamentoRequest novoEquipamento,
+    public ResponseEntity<EntityModel<EquipamentoResponse>> cadastrar(@Valid @RequestBody EquipamentoRequest novoEquipamento,
                                                          Authentication authentication) {
         EquipamentoResponse equipamentoResponse = equipamentoService.cadastrar(novoEquipamento, authentication);
-        return ResponseEntity.status(HttpStatus.CREATED).body(equipamentoResponse);
+        return ResponseEntity.status(HttpStatus.CREATED).body(comLinks(equipamentoResponse));
     }
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Page<EquipamentoResponse>> consultar(
+    public ResponseEntity<PagedModel<EntityModel<EquipamentoResponse>>> consultar(
             @RequestParam(required = false) Long pacienteId,
             @ParameterObject @PageableDefault(page = 0, size = 10, sort = "codigoDispositivo") Pageable paginacao,
+            PagedResourcesAssembler<EquipamentoResponse> assembler,
             Authentication authentication) {
         Page<EquipamentoResponse> equipamentos = equipamentoService.consultar(pacienteId, paginacao, authentication);
-        return ResponseEntity.ok(equipamentos);
+        //--- o assembler transforma a Page em PagedModel (HAL): cada item com os seus links e, no fim, "page"
+        //--- (tamanho, total, página atual) e os links first/prev/next/last para o app navegar entre as páginas
+        return ResponseEntity.ok(assembler.toModel(equipamentos, this::comLinks));
     }
 
     @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<EquipamentoResponse> consultarPorCodigo(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<EntityModel<EquipamentoResponse>> consultarPorCodigo(@PathVariable Long id, Authentication authentication) {
         EquipamentoResponse equipamentoResponse = equipamentoService.consultarPorCodigo(id);
         //--- RN15: a família só vê o equipamento dos seus pacientes (operador e admin passam)
         controleDeAcesso.garantirAcesso(authentication, equipamentoResponse.usuarioId());
-        return ResponseEntity.ok(equipamentoResponse);
+        return ResponseEntity.ok(comLinks(equipamentoResponse));
     }
 
     @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<EquipamentoResponse> atualizar(@PathVariable Long id, @Valid @RequestBody EquipamentoRequest equipamento,
+    public ResponseEntity<EntityModel<EquipamentoResponse>> atualizar(@PathVariable Long id, @Valid @RequestBody EquipamentoRequest equipamento,
                                                          Authentication authentication) {
         //--- primeiro descobre o dono (404 se não existe), confere o acesso e só então altera
         EquipamentoResponse equipamentoCadastrado = equipamentoService.consultarPorCodigo(id);
         controleDeAcesso.garantirAcesso(authentication, equipamentoCadastrado.usuarioId());
 
         EquipamentoResponse equipamentoResponse = equipamentoService.atualizar(id, equipamento);
-        return ResponseEntity.ok(equipamentoResponse);
+        return ResponseEntity.ok(comLinks(equipamentoResponse));
     }
 
     @DeleteMapping(path = "/{id}")
@@ -69,6 +78,13 @@ public class EquipamentoResource {
 
         equipamentoService.remover(id);
         return ResponseEntity.noContent().build();
+    }
+
+    //--- HATEOAS: self (o próprio equipamento) e paciente (quem usa o aparelho)
+    private EntityModel<EquipamentoResponse> comLinks(EquipamentoResponse equipamento) {
+        return EntityModel.of(equipamento,
+                linkTo(methodOn(EquipamentoResource.class).consultarPorCodigo(equipamento.id(), null)).withSelfRel(),
+                linkTo(methodOn(PacienteResource.class).consultarPorCodigo(equipamento.pacienteId(), null)).withRel("paciente"));
     }
 
 }
