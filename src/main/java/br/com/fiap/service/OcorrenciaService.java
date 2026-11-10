@@ -1,12 +1,18 @@
 package br.com.fiap.service;
 
+import br.com.fiap.dto.AtendimentoRequest;
+import br.com.fiap.dto.AtendimentoResponse;
 import br.com.fiap.dto.OcorrenciaRequest;
 import br.com.fiap.dto.OcorrenciaResponse;
+import br.com.fiap.dto.ResolverRequest;
+import br.com.fiap.entity.Atendimento;
 import br.com.fiap.entity.Equipamento;
 import br.com.fiap.entity.Ocorrencia;
+import br.com.fiap.enums.AcaoAtendimento;
 import br.com.fiap.enums.StatusOcorrencia;
 import br.com.fiap.exception.RecursoNaoEncontradoException;
 import br.com.fiap.exception.RegraDeNegocioException;
+import br.com.fiap.repository.AtendimentoRepository;
 import br.com.fiap.repository.EquipamentoRepository;
 import br.com.fiap.repository.OcorrenciaRepository;
 import br.com.fiap.repository.OcorrenciaSpecifications;
@@ -15,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -29,12 +36,14 @@ public class OcorrenciaService {
 
     private final OcorrenciaRepository ocorrenciaRepository;
     private final EquipamentoRepository equipamentoRepository;
+    private final AtendimentoRepository atendimentoRepository;
     private final ControleDeAcesso controleDeAcesso;
 
     public OcorrenciaService(OcorrenciaRepository ocorrenciaRepository, EquipamentoRepository equipamentoRepository,
-                             ControleDeAcesso controleDeAcesso) {
+                             AtendimentoRepository atendimentoRepository, ControleDeAcesso controleDeAcesso) {
         this.ocorrenciaRepository = ocorrenciaRepository;
         this.equipamentoRepository = equipamentoRepository;
+        this.atendimentoRepository = atendimentoRepository;
         this.controleDeAcesso = controleDeAcesso;
     }
 
@@ -114,9 +123,92 @@ public class OcorrenciaService {
         Ocorrencia ocorrencia = buscarOcorrencia(id);
 
         //--- RN15: a família só vê as ocorrências dos seus pacientes (sem cache, a conferência pode ficar aqui)
-        controleDeAcesso.garantirAcesso(authentication, ocorrencia.getEquipamento().getPaciente().getUsuario().getId());
+        controleDeAcesso.garantirAcesso(authentication, usuarioIdDono(ocorrencia));
 
         return OcorrenciaResponse.from(ocorrencia, agora, posicaoNaFila(ocorrencia));
+    }
+
+    //--- a linha do tempo que a família acompanha pelo app, do primeiro ao último passo
+    public List<AtendimentoResponse> consultarAtendimentos(Long id, Authentication authentication) {
+        Ocorrencia ocorrencia = buscarOcorrencia(id);
+        controleDeAcesso.garantirAcesso(authentication, usuarioIdDono(ocorrencia));
+
+        return atendimentoRepository.findByOcorrenciaIdOrderByDataHoraAsc(id)
+                .stream()
+                .map(AtendimentoResponse::from)
+                .toList();
+    }
+
+    //--- @Transactional: aqui duas gravações precisam acontecer JUNTAS — o novo atendimento e a mudança de status
+    //--- da ocorrência (RN12). Se uma falhar, a outra é desfeita (nunca fica "atendimento gravado com status ABERTA").
+    //--- O professor não usa porque os métodos dele gravam uma coisa só (como o nosso registrarQueda)
+    @Transactional
+    public AtendimentoResponse registrarAtendimento(Long id, AtendimentoRequest atendimentoRequest) {
+        Ocorrencia ocorrencia = buscarOcorrencia(id);
+
+        //--- RN10: ocorrência encerrada é histórico
+        if (ocorrencia.getStatus() == StatusOcorrencia.RESOLVIDA) {
+            throw new RegraDeNegocioException("A ocorrência já foi resolvida e não recebe novos atendimentos");
+        }
+
+        //--- RN11: a volta da energia encerra a ocorrência, por isso só entra pelo resolver
+        if (atendimentoRequest.acao() == AcaoAtendimento.ENERGIA_RESTABELECIDA) {
+            throw new RegraDeNegocioException("A energia restabelecida é registrada pelo resolver da ocorrência");
+        }
+
+        //--- RN12: o primeiro atendimento tira a ocorrência de ABERTA (alguém da central assumiu o caso)
+        if (ocorrencia.getStatus() == StatusOcorrencia.ABERTA) {
+            ocorrencia.setStatus(StatusOcorrencia.EM_ATENDIMENTO);
+        }
+
+        Atendimento novoAtendimento = atendimentoRequest.toEntity();
+        novoAtendimento.setDataHora(agora());
+        ocorrencia.adicionarAtendimento(novoAtendimento);
+
+        //--- salva a ocorrência e o cascade grava o atendimento junto; o flush manda tudo ao banco agora (gera o id)
+        Ocorrencia ocorrenciaAtualizada = ocorrenciaRepository.saveAndFlush(ocorrencia);
+
+        //--- o atendimento gravado (já com o id gerado) é o último da lista da ocorrência
+        Atendimento atendimentoCadastrado = ocorrenciaAtualizada.getAtendimentos().getLast();
+        return AtendimentoResponse.from(atendimentoCadastrado);
+    }
+
+    //--- @Transactional pelo mesmo motivo: fim, status RESOLVIDA e o atendimento final vão juntos ou não vão
+    @Transactional
+    public OcorrenciaResponse resolver(Long id, ResolverRequest resolverRequest) {
+        LocalDateTime agora = agora();
+        Ocorrencia ocorrencia = buscarOcorrencia(id);
+
+        if (ocorrencia.getStatus() == StatusOcorrencia.RESOLVIDA) {
+            throw new RegraDeNegocioException("A ocorrência já foi resolvida");
+        }
+
+        //--- RN13: só resolve o que está em atendimento (alguém da central precisa ter atendido antes)
+        if (ocorrencia.getStatus() != StatusOcorrencia.EM_ATENDIMENTO) {
+            throw new RegraDeNegocioException("A ocorrência precisa ser atendida antes de ser resolvida");
+        }
+
+        //--- o corpo é opcional: sem observação, fica o texto padrão
+        String observacao = "Energia restabelecida";
+        if (Objects.nonNull(resolverRequest) && Objects.nonNull(resolverRequest.observacao())
+                && !resolverRequest.observacao().isBlank()) {
+            observacao = resolverRequest.observacao();
+        }
+
+        //--- RN14: fecha a ocorrência e acrescenta (por cascade) o último passo da linha do tempo
+        Atendimento encerramento = new Atendimento();
+        encerramento.setDataHora(agora);
+        encerramento.setAcao(AcaoAtendimento.ENERGIA_RESTABELECIDA);
+        encerramento.setObservacao(observacao);
+
+        ocorrencia.setFim(agora);
+        ocorrencia.setStatus(StatusOcorrencia.RESOLVIDA);
+        ocorrencia.adicionarAtendimento(encerramento);
+
+        Ocorrencia ocorrenciaResolvida = ocorrenciaRepository.saveAndFlush(ocorrencia);
+
+        //--- resolvida sai da fila: posição nula
+        return OcorrenciaResponse.from(ocorrenciaResolvida, agora, null);
     }
 
     //--- posição = quantas abertas acabam a bateria antes desta + 1. Resolvida não está mais na fila: null
@@ -127,6 +219,11 @@ public class OcorrenciaService {
         long antes = ocorrenciaRepository.countByStatusNotAndPrevisaoEsgotamentoLessThan(
                 StatusOcorrencia.RESOLVIDA, ocorrencia.getPrevisaoEsgotamento());
         return (int) antes + 1;
+    }
+
+    //--- o dono da ocorrência é a família do paciente: ocorrência -> equipamento -> paciente -> usuário
+    private Long usuarioIdDono(Ocorrencia ocorrencia) {
+        return ocorrencia.getEquipamento().getPaciente().getUsuario().getId();
     }
 
     private Ocorrencia buscarOcorrencia(Long id) {
