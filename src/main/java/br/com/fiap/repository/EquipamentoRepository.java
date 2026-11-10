@@ -7,4 +7,8 @@ import org.springframework.stereotype.Repository;
 //--- herda do JpaRepository os métodos prontos: save, findById, findAll, count, deleteById...
 @Repository
 public interface EquipamentoRepository extends JpaRepository<Equipamento, Long> {
+
+    //--- RN05: o paciente tem algum equipamento? (se tiver, não pode ser apagado)
+    boolean existsByPacienteId(Long pacienteId);
+
 }
