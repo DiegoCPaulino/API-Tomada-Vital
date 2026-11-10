@@ -1,7 +1,10 @@
 package br.com.fiap.controller;
 
 import br.com.fiap.dto.TokenResponse;
+import br.com.fiap.dto.UsuarioCadastroRequest;
+import br.com.fiap.dto.UsuarioResponse;
 import br.com.fiap.service.GeradorTokenJWTService;
+import br.com.fiap.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -9,21 +12,60 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/autenticacao")
-@Tag(name = "Autenticação", description = "API para login dos usuários.") //--- agrupando os endpoints por API
+@Tag(name = "Autenticação", description = "API para cadastro e login dos usuários.") //--- agrupando os endpoints por API
 public class AutenticacaoResource {
 
     private final GeradorTokenJWTService geradorTokenService;
+    private final UsuarioService usuarioService;
 
-    public AutenticacaoResource(GeradorTokenJWTService geradorTokenService) {
+    public AutenticacaoResource(GeradorTokenJWTService geradorTokenService, UsuarioService usuarioService) {
         this.geradorTokenService = geradorTokenService;
+        this.usuarioService = usuarioService;
+    }
+
+    //--- sem security no @Operation: o cadastro é público (quem ainda não tem conta não tem login nem token)
+    @Operation(
+            summary = "Cadastrar usuário.",
+            description = "Cadastro público da família pelo app. O usuário é criado sempre com o papel FAMILIA.")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Usuário cadastrado com sucesso.",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(
+                                    implementation = UsuarioResponse.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Dados inválidos ou login já cadastrado.",
+                    content = @Content
+            )
+    })
+    @PostMapping(path = "/cadastro", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            description = "Dados do usuário a ser cadastrado.",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = UsuarioCadastroRequest.class)))
+    public ResponseEntity<UsuarioResponse> cadastrar(@Valid @RequestBody UsuarioCadastroRequest novoUsuario) {
+        UsuarioResponse usuarioResponse = usuarioService.cadastrar(novoUsuario);
+        return ResponseEntity.status(HttpStatus.CREATED).body(usuarioResponse);
     }
 
     @Operation(

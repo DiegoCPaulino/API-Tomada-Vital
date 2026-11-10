@@ -23,10 +23,14 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -99,6 +103,24 @@ public class ConfiguracoesDeSeguranca {
     }
 
 
+    //--- CORS: requisito do enunciado ("CORS para o app"). O navegador bloqueia uma página de outra origem
+    //--- (ex.: o app Flutter rodando na web em localhost:5000) de chamar esta API, a não ser que a API autorize.
+    //--- Antes da requisição de verdade, o navegador manda um OPTIONS (pré-voo) e confere estes cabeçalhos.
+    //--- O app no emulador Android ou no celular não é navegador: para ele o CORS não se aplica
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuracao = new CorsConfiguration();
+        configuracao.setAllowedOrigins(List.of("*")); //--- qualquer origem: a proteção dos dados é o token, não a origem
+        configuracao.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuracao.setAllowedHeaders(List.of("Authorization", "Content-Type")); //--- o token e o JSON
+        configuracao.setAllowCredentials(false); //--- sem cookie: o token vai no cabeçalho Authorization
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuracao); //--- vale para todas as URLs da API
+        return source;
+    }
+
+
     //--- Configurações para Autorização de acessos (1ª camada: URL e método HTTP, tabela do contrato).
     //--- A 2ª camada ("a família só mexe no que é seu") fica no ControleDeAcesso.
     //--- As regras são conferidas de cima para baixo e vale a primeira que bater: as mais específicas vêm antes
@@ -106,6 +128,8 @@ public class ConfiguracoesDeSeguranca {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter) {
         return http
                 .csrf(csrf -> csrf.disable()) //--- API sem sessão nem cookie (o token vai no cabeçalho): o CSRF não se aplica
+
+                .cors(Customizer.withDefaults()) //--- usa o bean corsConfigurationSource abaixo
 
                 //--- o console do H2 é uma página com frames: sem isto o navegador bloqueia a tela dele
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
@@ -120,6 +144,10 @@ public class ConfiguracoesDeSeguranca {
                                 "/actuator/info",
                                 "/h2-console/**",
                                 "/error")
+                        .permitAll()
+
+                        //--- o cadastro é público: quem ainda não tem conta não tem login nem token (cria sempre FAMILIA)
+                        .requestMatchers(HttpMethod.POST, "/autenticacao/cadastro")
                         .permitAll()
 
                         //--- o login exige HTTP Basic (login e senha): é ele que devolve o token
