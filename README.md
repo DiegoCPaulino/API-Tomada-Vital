@@ -35,9 +35,9 @@ Muita gente depende, em casa, de um aparelho elétrico para continuar viva: **co
 
 E a luz tem caído por muito tempo na Grande São Paulo:
 
-- **Apagão de 10/12/2025 em São Paulo:** a Enel admitiu **4,4 milhões de clientes atingidos**. *(Fonte: Mercado & Consumo, 14/01/2026)*
-- **Temporal de 11/10/2024:** **2,1 milhões de casas** ficaram sem energia; em **Taboão da Serra**, **32,7 mil instalações** ainda estavam sem luz no **3º dia**. *(Fonte: Brasil de Fato, via CUT)*
-- A **ANEEL** prevê prioridade no atendimento para quem depende de aparelho elétrico, mas **só para quem está cadastrado antes** na distribuidora. *(Fonte: regra da ANEEL, A Gazeta do Acre, 03/2024)*
+- **Apagão de 10/12/2025 em São Paulo:** a Enel admitiu **4,4 milhões de clientes atingidos**. *(Fonte: [Mercado & Consumo, 14/01/2026](https://mercadoeconsumo.com.br/14/01/2026/economia/enel-diz-que-apagao-em-sp-afetou-44-milhoes-de-clientes-o-dobro-do-divulgado-anteriormente/))*
+- **Temporal de 11/10/2024:** **2,1 milhões de casas** ficaram sem energia; em **Taboão da Serra**, **32,7 mil instalações** ainda estavam sem luz no **3º dia**. *(Fonte: [Brasil de Fato, via CUT, 14/10/2024](https://www.cut.org.br/noticias/mais-de-meio-milhao-de-clientes-da-enel-seguem-sem-luz-em-sp-no-3-dia-de-apagao-d60c))*
+- A **ANEEL** prevê prioridade no atendimento para quem depende de aparelho elétrico, mas **só para quem está cadastrado antes** na distribuidora. *(Fonte: [A Gazeta do Acre, 03/2024](https://agazetadoacre.com/2024/03/noticias/geral/pacientes-que-usam-equipamentos-de-sobrevida-devem-manter-cadastro-atualizado-na-energisa-para-receber-suporte-especial))*
 
 Quando o apagão atinge milhões de casas ao mesmo tempo, a concessionária não sabe **quais** casas têm alguém dependendo de um aparelho, nem **quanto tempo** cada uma ainda tem. A família, por sua vez, não sabe se alguém já está a caminho.
 
