@@ -132,7 +132,7 @@ public class OcorrenciaResource {
                     responseCode = "200",
                     description = "Página com as ocorrências (HAL: _embedded.ocorrencias, _links e page)."
             ),
-            @ApiResponse(responseCode = "400", description = "Status inexistente.", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Status inexistente ou ordenação por um campo que não existe (ex.: prioridade).", content = @Content),
             @ApiResponse(responseCode = "401", description = "Não autenticado (token ausente, inválido ou vencido).", content = @Content)
     })
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)

@@ -1,11 +1,13 @@
 package br.com.fiap.exception;
 
+import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +39,25 @@ public class TratadorGlobalException {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problemDetail.setTitle("Requisição inválida");
         problemDetail.setDetail("O corpo da requisição está malformado ou tem um valor inválido.");
+        return problemDetail;
+    }
+
+    //--- ordenação por um campo que não existe na entidade (ex.: ?sort=prioridade): o Spring Data não acha a coluna.
+    //--- Sem este tratamento a resposta seria 500, mas o erro é de quem fez a requisição: 400
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ProblemDetail tratar(PropertyReferenceException e) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problemDetail.setTitle("Requisição inválida");
+        problemDetail.setDetail("Não é possível ordenar pelo campo " + e.getPropertyName() + ".");
+        return problemDetail;
+    }
+
+    //--- valor de tipo errado na URL (ex.: ?status=XYZ ou /api/pacientes/abc): sem isto o 400 sairia fora do ProblemDetail
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail tratar(MethodArgumentTypeMismatchException e) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problemDetail.setTitle("Requisição inválida");
+        problemDetail.setDetail("O valor " + e.getValue() + " não é válido para " + e.getName() + ".");
         return problemDetail;
     }
 

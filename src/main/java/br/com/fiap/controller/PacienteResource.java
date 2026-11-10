@@ -93,6 +93,7 @@ public class PacienteResource {
                     responseCode = "200",
                     description = "Página com os pacientes (HAL: _embedded.pacientes, _links e page)."
             ),
+            @ApiResponse(responseCode = "400", description = "Ordenação por um campo que não existe.", content = @Content),
             @ApiResponse(responseCode = "401", description = "Não autenticado (token ausente, inválido ou vencido).", content = @Content),
             @ApiResponse(responseCode = "403", description = "Sem permissão.", content = @Content)
     })

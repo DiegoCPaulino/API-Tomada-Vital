@@ -584,6 +584,7 @@ Todo erro tratado pela API sai no formato **`ProblemDetail`** (padrão RFC 9457 
 |---|---|---|
 | falha no Bean Validation | 400 | "Dados inválidos" + `campos` (campo → mensagem) |
 | JSON quebrado ou valor de enum que não existe | 400 | "Requisição inválida" |
+| ordenação por um campo que não existe (ex.: `?sort=prioridade`) ou valor de tipo errado na URL (ex.: `?status=XYZ`) | 400 | "Requisição inválida" |
 | regra de negócio violada (`RegraDeNegocioException`) | 400 | "Regra de negócio violada" + `detail` com a regra |
 | registro não encontrado (`RecursoNaoEncontradoException`) | 404 | "Recurso não encontrado" |
 | registro de outra família (`AcessoNegadoException`) | 403 | "Acesso negado" |
